@@ -20,7 +20,7 @@ La versión final del trabajo puede visualizarse en:
 
 <!-- Abajo podéis escribir lo que queráis, igual un resumen del trabajo, o ..., o ... pero al menos, tenéis que poner el título del trabajo y el nombre de los componentes del equipo-->
 
-Presentación del trabajo EL CRUDO EN EL MUNDO por : Carolina, Jialing,
-José
+Presentación del trabajo IMPORTANCIA DEL CRUDO EN EL MUNDO por:
+Carolina, Jialing, José
 
 <!-- Finalmente, acuérdate que cuando hayas hecho los cambios y hayas dejado este archivo como hayáis decidido, TENEIS que knittearlo para que los cambios se actualicen en el fichero Readme.md, que es el que finalmente se visualizará en Github-->
