@@ -1,0 +1,618 @@
+---
+title: "EL CRUDO EN EL MUNDO"
+subtitle: "Carolina, Jialing, José."
+author: "Universitat de València."
+date: "Diciembre de 2021"
+output:  
+   ioslides_presentation:
+   widescreen: yes
+   smaller: yes
+   logo: imagenes/gota2.png
+   background.color: "white"
+---
+
+```{css, echo = FALSE}
+body {background-color: darksalmon;}
+```
+
+```{r chunk-setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, message = FALSE, warning = FALSE, 
+                      #results = "hold",
+                      cache = FALSE, cache.path = "/caches/", comment = "#>",
+                      #fig.width = 7, #fig.height= 7,   
+                      #out.width = 7, out.height = 7,
+                      collapse = TRUE,  fig.show = "hold",
+                      fig.asp = 0.628, out.width = "75%", fig.align = "center")
+knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r packages-setup, include = FALSE}
+library(tidyverse)
+library(rio)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(gganimate)
+library(janitor)
+#install.packages("directlabels")
+library(directlabels)
+library("rnaturalearth")
+library("rnaturalearthdata")
+library(hrbrthemes)
+library(countrycode)
+library(glue)
+library(gt)
+library(broom)
+library(dplyr)
+library(gapminder)
+#install.packages("geojsonio")
+library(geojsonio)
+#remotes::install_github("jimjam-slam/ggflags")
+library(ggflags)
+library(ggthemes)
+library(gifski)
+library(gridExtra)
+library(RColorBrewer)
+library(readxl)
+library(rgdal)
+library(rgeos)
+library(sf)
+library(viridis)
+library(viridisLite)
+library(stringr)
+library(DT)
+library(wordcloud2)
+library(wordcloud)
+#install.packages("tm")
+library(tm)
+#install.packages("slam")
+library(slam)
+library(plotly)
+library(klippy)  #- remotes::install_github("rlesur/klippy")
+library(knitr)
+library(ggwordcloud)
+```
+
+## INTRODUCCIÓN {.smaller}
+
+
+> - **El petróleo sigue siendo hoy en día la principal fuente de energía**
+
+
+> - En el trabajo vamos a exponer algunos **datos relevantes sobre el mercado del crudo** 
+
+> - Comenzaremos hablando sobre los **niveles de producción por países**, como ha evolucionado las rentas del petróleo sobre el PIB para diferentes países
+
+> - A continuación expondremos la evolución de las exportaciones a nivel mundial para acabar centrandonos en Europa y EEUU
+
+
+
+
+```{r, echo = FALSE, eval = TRUE}
+cons<- rio::import(here::here("datos", "Uso petroleo.xls")) 
+produccion2020 <- rio::import(here::here("datos", "produccion 2020 por paises.xlsx")) 
+rent <- rio::import(here::here("datos", "Rentas petroleo.xls")) 
+iso3<-rio::import(here::here("datos","iso3.xlsx"))
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+ 
+```
+
+----
+<center><FONT COLOR="#575757">TABLA PRODUCCIÓN AÑO 2020</FONT></center>
+
+```{r echo = FALSE, eval= TRUE, out.height="10%"}
+dfbanderas <- full_join(iso3, produccion2020, by = c("País" = "Países") )
+dfbanderas[6] <-list(NULL)
+dfbanderas <- dfbanderas %>% na.omit()
+
+df_flags <- dfbanderas %>% #- fips
+  mutate(iso2 = countrycode(sourcevar = iso3, origin = "iso3c", destination = "iso2c", warn = FALSE)) %>% 
+  mutate(iso2 = tolower(iso2)) %>% 
+  mutate(flag_URL = glue::glue('https://hatscripts.github.io/circle-flags/flags/{iso2}.svg')) 
+
+
+tt_flags <- df_flags %>% gt()
+
+
+tt_flags %>% 
+  gt::text_transform(locations = cells_body(columns = c(flag_URL)), 
+                     fn = function(x){gt::web_image(x, height = 30)})
+```
+
+----
+<center><FONT COLOR="#575757">MAPA PRODUCCIÓN AÑO 2020</FONT></center>
+
+
+```{r, out.width="90%"}
+df_world <- left_join(world, produccion2020, by = c("name" = "Países") )
+pw<- ggplot(df_world) + geom_sf(aes(geometry = geometry, fill = Producción))+ theme(panel.grid.major = element_line(colour = "white"), panel.grid.minor = element_line(colour = "white"))+labs(title = "Producción anual de petróleo crudo(Miles de barriles por día) 2020") + theme(panel.background = element_rect(fill = "white"),
+    legend.position = "bottom", legend.direction = "horizontal")
+
+pw
+```
+
+----
+<center><FONT COLOR="#575757">10 PAÍSES CON MAYOR PRODUCCIÓN</FONT></center>
+ 
+ 
+**EEUU lidera la producción mundial del crudo**
+
+```{r}
+df1 <- produccion2020 %>% arrange(desc(Producción)) %>% slice(1:10)
+
+
+p <- ggplot(df1, aes(x=reorder(Países,Producción),y=Producción)) +
+  geom_bar(stat="identity", fill="#1874CD", alpha=.9, width=.9) +geom_text(aes(label=Producción),size=4,hjust = 1,color="white")+
+  coord_flip() +
+  theme_bw() + theme(panel.grid.major = element_line(colour = "white"),
+    panel.grid.minor = element_line(colour = "white"))+labs(x=NULL,y=NULL)+labs(title = "Producción anual de petróleo crudo(Miles de barriles por día) 2020")
+p
+```
+
+----
+<center><FONT COLOR="#575757">EVOLUCIÓN DE LAS RENTAS EN % DEL PIB</FONT></center>
+
+**En el siguiente gráfico se muestra la evolución de las rentas en % del PIB para aquellos países con mayores rentas en el año 2019**
+
+```{r}
+data_long <- rent %>% pivot_longer(cols = 5:65, names_to = "Año",values_to = "Rent")
+#df_rent <- janitor::clean_names(data_long) 
+df_rent_tot <- data_long %>%na.omit() 
+
+df_rent <- df_rent_tot %>% filter(Año==2019) %>% arrange(desc(Rent)) %>% slice(1:10)
+
+df_ev <- df_rent_tot %>% filter(country_code %in% c("LBY", "COG","KWT","IRQ","AGO","OMN","SAU","GNQ","AZE","ARB")) 
+
+
+
+df_ev<-df_ev %>% mutate(Año= as.integer(Año)) 
+df_ev <- df_ev %>% mutate(Año=as.numeric(Año)) 
+
+
+pp <- ggplot(df_ev, aes(x=Año, y=Rent,group=country_name,color=country_name))+
+  geom_line()+ geom_point() +
+  ggtitle("Evolución rentas petróleo en % sobre el PIB") +
+  theme_ipsum() +
+  scale_x_continuous(breaks=seq(1980,2015,5),limits=c(1980,2015)) + labs(y = NULL,
+                                                                         color = "Países")
+
+pp + transition_reveal(Año)
+```
+
+
+
+----
+<center><FONT COLOR="#575757">EVOLUCIÓN CONSUMO CRUDO DESDE 1960</FONT></center>
+
+```{r fig.align = "center"}
+
+data_long__cons <- cons %>% pivot_longer(cols = 5:65, names_to = "Año",values_to = "consumo")
+
+data_cons<-data_long__cons %>%group_by(Año) %>% filter(Año%in%c(1960:2010)) %>% summarise(consumo=sum(consumo,na.rm=TRUE)) %>% ungroup()
+  
+data_cons<-data_cons %>% mutate(Año=as.numeric(Año))
+
+
+cons_graf<- ggplot(data_cons, aes(x=Año, y=consumo))+   geom_area( fill="#69b3a2", alpha=0.4)+   geom_line(color="#69b3a2", size=2)+   geom_point(size=3, color="#69b3a2")+   theme_ipsum() +ggtitle("Evolución consumo crudo desde 1960")+scale_x_continuous(breaks=seq(1960,2010,5),limits=c(1960,2010))+ theme(plot.subtitle = element_text(family = "serif"),plot.caption = element_text(family = "serif"),panel.grid.major = element_line(colour = "whitesmoke"),panel.grid.minor = element_line(colour = "white"), axis.title = element_text(family = "serif"), plot.title = element_text(family = "serif"),  panel.background = element_rect(fill = "white")) +labs(x = NULL, y = NULL)
+
+
+ggplotly(cons_graf)
+```
+
+## PRECIO DE LA GASOLINA
+
+```{r datos}
+
+precio_gasolina <- rio::import(here::here("datos", "precio gasolina.xlsx"))
+export <- rio::import(here::here("datos", "export.xlsx"))
+import <- rio::import(here::here("datos", "import.xlsx"))
+
+```
+
+```{r Mapa precio Gasolina}
+
+precio_gasolina[3:35] <- list(NULL)#eliminar columnas
+precio_gasolina[29:32]<- list(NULL)
+
+precio_gasolina <- precio_gasolina %>% 
+  tidyr::pivot_longer(cols = 3:28, names_to = "año", values_to = "precio") #pasar a formato long
+precio_gasolina <- precio_gasolina %>% 
+  filter(precio > 0, año == 2016) %>%
+  arrange(desc(precio))
+
+world <- rnaturalearth::ne_countries(scale = "Medium", returnclass = "sf")
+
+df_inner <- left_join(world,precio_gasolina, by = c("iso_a3"="Country Code" ))
+
+pw<- ggplot(df_inner) + geom_sf(aes(geometry = geometry, fill = precio)) 
+
+
+p1 <- pw+ scale_fill_viridis_c(option = "plasma", trans = "sqrt") + labs(title = 'PRECIO DE LA GASOLINA 2016',                                                                                          subtitle = "(Por países)",
+                caption = "Datos provenientes del Banco Mundial",
+                tag = "Plot 1")
+
+ggplotly(p1)
+
+```
+
+
+## EXPORTACIONES EN EL MUNDO
+
+```{r Exportaciones del Mundo}
+#Calculado por millones de barriles al día
+
+export[1] <- list(NULL)
+export[41] <- list(NULL)
+export_1 <- export %>% 
+  tidyr::pivot_longer(cols = 2:41, names_to = "year", values_to = "exportaciones" )
+
+is.character(export_1$exportaciones)
+export_1$exportaciones=as.numeric(export_1$exportaciones)
+
+export_2 <- export_1 %>% tidyr::drop_na() %>% 
+  filter(exportaciones > 0 & Country != "World" & Country != "Micronesia" & Country != "Northern Mariana Islands" & Country != "Tuvalu" & year == 2018) %>% 
+  group_by(year) %>%
+  slice_max(n = 20, exportaciones) %>%
+  arrange(desc(exportaciones))
+  
+
+export_2[2] <- list(NULL)
+
+ggplot(export_2, aes(label = Country,
+                  size = exportaciones,   
+                  color = factor(sample.int(10, nrow(export_2), replace =T)))) +
+  geom_text_wordcloud(grid_size = 8) +
+  scale_size_area(max_size = 26) +
+  theme_minimal() 
+
+```
+
+## IMPORTACIONES EN EL MUNDO
+
+```{r Importaciones del Mundo}
+
+import = import[-1,]
+import[1] <- list(NULL)
+import[41] <- list(NULL)
+
+
+import_1 <- import %>% tidyr::pivot_longer(cols = 2:41, names_to = "year", values_to = "imports" )
+
+is.character(import_1$imports)
+import_1$imports=as.numeric(import_1$imports)
+
+
+import_2 <- import_1 %>% tidyr::drop_na() %>% 
+  filter(imports > 0 & country != "World" & country != "Micronesia" & country != "Northern Mariana Islands" & country != "Tuvalu") %>%
+  group_by(year) %>%
+  slice_max(n = 10, imports) %>%
+  arrange(desc(year))
+  
+import_2 %>% DT::datatable(extensions = 'Buttons', 
+                           options = list(dom = 'Blfrtip', 
+                           buttons = c('copy', 'csv', 'excel', 'pdf', 'print'), 
+                           pageLength = 5, autoWidth = TRUE )) 
+
+```
+
+## BALANCE
+
+```{r BALANZA }
+
+export_import <- inner_join(export_1, import_1, by = c("Country" = "country", "year" = "year") )
+
+export_import_1 <- export_import %>% mutate(balance = exportaciones-imports,
+                                            proporcion = imports/exportaciones)
+
+export_import_2 <- export_import_1 %>% tidyr::drop_na() %>% 
+  filter(exportaciones > 0 & Country != "World" & Country != "Micronesia" & Country != "Northern Mariana Islands" & Country != "Tuvalu" & imports > 0) %>% 
+  group_by(year) %>%
+  slice_max(n = 10, exportaciones) %>%
+  arrange(desc(year)) 
+
+Tabla3 <- export_import_2 %>% DT::datatable(filter = 'top',
+                           extensions = 'Buttons',
+                           options = list(dom = 'Blfrtip', 
+                           buttons = c('copy', 'csv', 'excel', 'pdf', 'print'), 
+                           pageLength = 5, autoWidth = TRUE ))
+
+Tabla3
+
+```
+
+## DATOS SOBRE EUROPA Y USA 
+
+A continuación veamos algunos datos sobre Europa y los Estados Unidos 
+
+- Para Europa hemos escogido varios ficheros desde Eurostat con datos sobre exportaciones e importaciones de petróleo y producstos derivados. 
+
+- Para los Estados Unidos hemos escogido un fichero desde EIA sobre las producciones(petróelo) anuales de cada Estado para diferentes años. 
+
+
+## EUROPA EXPORTACIONES 
+
+```{r, warning=FALSE}
+nrg_te_oil_1_Data <- read_excel("europa_exp_imp_petr/nrg_te_oil_1_Data.xlsx", 
+                                col_types = c("text", "text", "text", 
+                                              "text", "text", "numeric", "text"))
+ue_exp <- nrg_te_oil_1_Data %>% select("TIME","GEO", "SIEC", "UNIT", "Value" ) %>%
+  group_by(TIME) %>%
+  arrange(TIME, desc(Value)) %>%
+  filter(GEO != "European Union - 27 countries (from 2020)") %>%
+  filter(GEO != "European Union - 28 countries (2013-2020)") %>%
+  filter(GEO != "Euro area - 19 countries  (from 2015)") %>%
+  mutate(ranking = row_number())  %>%
+  filter(ranking <=15)
+
+# Animacion UE Exp
+animacion_1 <- ue_exp %>%
+  ggplot() +
+  geom_col(aes(ranking, Value, fill = GEO)) +
+  geom_text(aes(ranking, Value, label = Value), hjust=-0.1) +
+  geom_text(aes(ranking, y=0 , label = GEO), hjust=1.1) + 
+  geom_text(aes(x=15, y=max(Value) , label = as.factor(TIME)), vjust = 0.2, alpha = 0.5,  col = "gray", size = 20) +
+  coord_flip(clip = "off", expand = FALSE) +  scale_x_reverse() +
+  theme_igray() + theme(
+    panel.grid = element_blank(), 
+    legend.position = "none",
+    axis.ticks.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    plot.margin = margin(1, 4, 1, 4, "cm")
+  ) +
+  transition_states(TIME, state_length = 0, transition_length = 2) +
+  enter_fade() +
+  exit_fade() + 
+  ease_aes('quadratic-in-out') + 
+  labs(title = "Gráfico: Top 10 Países EU por exportaciones",
+       subtitle = "(oil and petroleum products)",
+       caption = "Datos provenientes de Eurostat",
+       y = "Valor en miles de toneladas") 
+```
+
+```{r echo=FALSE, eval=TRUE, warning = FALSE, out.width="80%"}
+animate(animacion_1, width = 700, height = 432, fps = 25, duration = 20, rewind = FALSE)
+```
+
+## EUROPA IMPORTACIONES
+```{r, warning=FALSE}
+# Datos Europa Imp
+nrg_ti_oil_1_Data <- read_excel("europa_exp_imp_petr/nrg_ti_oil_1_Data.xlsx", 
+  col_types = c("text", "text", "text", 
+  "text", "text", "numeric", "text"))
+
+ue_imp <- nrg_ti_oil_1_Data %>% select("TIME","GEO", "SIEC", "UNIT", "Value" ) %>%
+  group_by(TIME) %>%
+  arrange(TIME, desc(Value)) %>%
+  filter(GEO != "European Union - 27 countries (from 2020)") %>%
+  filter(GEO != "European Union - 28 countries (2013-2020)") %>%
+  filter(GEO != "Euro area - 19 countries  (from 2015)") %>%
+  mutate(ranking = row_number())  %>%
+  filter(ranking <=15)
+# Animación UE Imp
+animacion_2 <- ue_imp %>%
+  ggplot() +
+  geom_col(aes(ranking, Value, fill = GEO)) +
+  geom_text(aes(ranking, Value, label = Value), hjust=-0.1) +
+  geom_text(aes(ranking, y=0 , label = GEO), hjust=1.1) + 
+  geom_text(aes(x=15, y=max(Value) , label = as.factor(TIME)), vjust = 0.2, alpha = 0.5,  col = "gray", size = 20) +
+  coord_flip(clip = "off", expand = FALSE) + scale_x_reverse() +
+  theme_igray() + theme(
+    panel.grid = element_blank(), 
+    legend.position = "none",
+    axis.ticks.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    plot.margin = margin(1, 4, 1, 4, "cm")
+  ) +
+  transition_states(TIME, state_length = 0, transition_length = 2) +
+  enter_fade() +
+  exit_fade() + 
+  ease_aes('quadratic-in-out') + 
+  labs(title = "Gráfico: Top 10 Países EU por importaciones",
+       subtitle = "(oil and petroleum products)",
+       caption = "Datos provenientes de Eurostat",
+       y = "Valor en miles de toneladas")
+
+```
+
+```{r echo=FALSE, eval=TRUE, warning = FALSE, out.width="80%"}
+animate(animacion_2, width = 700, height = 432, fps = 25, duration = 20, rewind = FALSE)
+```
+
+## EUROPA EXPORTACIONES E IMPORTACIONES
+Gráfico de banderas por importaciones y exportaciones
+Nota: unidades en miles de toneladas 
+```{r, warning=FALSE}
+# Datos Exp e Imp UE 
+
+nrg_ti_te_oil_1_Data <- read_excel("europa_exp_imp_petr/nrg_ti_te_oil_1_Data.xlsx", 
+  col_types = c("text", "numeric", "text", 
+  "text", "text", "text", "numeric", "numeric"))
+
+ue_exp_imp <- nrg_ti_te_oil_1_Data %>% select("TIME","GEO", "SIEC", "UNIT", "Valueexp", "Valueimp", "Code") %>%
+  filter(GEO != "European Union - 27 countries (from 2020)") %>%
+  filter(GEO != "European Union - 28 countries (2013-2020)") %>%
+  filter(GEO != "Euro area - 19 countries  (from 2015)")
+# Animacion Exp e Imp UE 
+
+
+animacion_3 <- ggplot(
+  ue_exp_imp, 
+  aes(x = Valueexp , y= Valueimp, size = 0,7, colour = GEO, country = Code)
+) +
+  geom_point(show.legend = FALSE, alpha = 0.7) +
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  labs(x ="Exportaciones", y = "Importaciones") + 
+  theme_igray() + 
+  transition_time(TIME) +
+  labs(title ="Gráfico: Países EU por importaciones y exportaciones", 
+       subtitle = "Year: {frame_time}") +
+  geom_flag(size = 10)
+```
+
+```{r echo=FALSE, eval=TRUE, warning = FALSE,out.width="80%"}
+animacion_3
+```
+
+
+## EUROPA: ESPAÑA IMPORTACIONES
+
+
+```{r, warning=FALSE}
+nrg_ti_te_oil_1_Data <- read_excel("europa_exp_imp_petr/nrg_ti_te_oil_1_Data.xlsx", 
+  col_types = c("text", "numeric", "text", 
+  "text", "text", "text", "numeric", "numeric"))
+# Datos Exp e Imp España 
+spain_exp_imp <- nrg_ti_te_oil_1_Data %>% select("TIME","GEO", "SIEC", "UNIT", "Valueexp", "Valueimp" ) %>%
+  filter(GEO == "Spain")
+# Animacion Exp e Imp España 
+spain_imp <- ggplot(spain_exp_imp, aes(TIME, Valueimp, fill = Valueimp)) +
+  geom_col() +
+  scale_fill_distiller(palette = "Reds", direction = 1) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(color = "white"),
+    panel.ontop = TRUE
+  ) + transition_states(TIME, wrap = FALSE) +
+  shadow_mark()
+```
+
+```{r echo=FALSE, eval=TRUE, warning = FALSE,out.width="80%"}
+spain_imp 
+```
+
+
+## EUROPA: ESPAÑA EXPORTACIONES 
+
+
+```{r, warning=FALSE}
+spain_exp <- ggplot(spain_exp_imp, aes(TIME, Valueexp, fill = Valueexp)) +
+  geom_col() +
+  scale_fill_distiller(palette = "Blues", direction = 1) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(color = "white"),
+    panel.ontop = TRUE
+  ) + transition_states(TIME, wrap = FALSE) +
+  shadow_mark()
+```
+
+```{r echo=FALSE, eval=TRUE, warning = FALSE, out.width="80%"}
+spain_exp
+```
+
+
+## ESTADOS UNIDOS 
+
+```{r}
+# Estados Unidos
+us_hex <- geojson_read("us_states_hexgrid.geojson",  what = "sp")
+us_hex@data = us_hex@data %>%
+  mutate(google_name = gsub(" \\(United States\\)", "", google_name))
+
+us_hex@data = us_hex@data %>% mutate(google_name = gsub(" \\(United States\\)", "", google_name))
+us_hex_fortified <- tidy(us_hex, region = "google_name")
+
+
+centers <- cbind.data.frame(data.frame(gCentroid(us_hex, byid=TRUE), id=us_hex@data$iso3166_2))
+
+
+us_oil <- read_excel("PET_CRD_CRPDN_ADC_MBBL_A.xls", 
+  col_types = c("text", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric"))
+us_hex_oil <- us_hex_fortified %>%
+  left_join(. , us_oil, by=c("id"="state"))
+
+# Preparación 1 
+us_hex_oil$bin <- cut( us_hex_oil$y_2020 , breaks=c(1,1000, 5000, 10000, 50000, 100000, Inf), labels=c("1-1000", "1001-5000", "5001-10000", "10001-50000", "50001-100000", "100000+" ), include.lowest = TRUE )
+
+# Preparación 2 
+my_palette <- rev(magma(8))[c(-1,-8)]
+
+# plot
+ggplot() +
+  geom_polygon(data = us_hex_oil, aes(fill = bin, x = long, y = lat, group = group) , size=0, alpha=0.9) +
+  geom_text(data=centers, aes(x=x, y=y, label=id), color="white", size=3, alpha=0.6) +
+  theme_void() +
+  scale_fill_manual( 
+    values=my_palette, 
+    name="Unidad: miles de barriles     Nota: 1 barril = 159L aprox", 
+    guide = guide_legend( keyheight = unit(3, units = "mm"), keywidth=unit(12, units = "mm"), label.position = "bottom", title.position = 'top', nrow=1) 
+  ) +
+  ggtitle( "Crude Oil production USA 2020" ) +
+  theme(
+    legend.position = c(0.5, 0.9),
+    text = element_text(color = "#22211d"),
+    plot.background = element_rect(fill = "#f5f5f2", color = NA), 
+    panel.background = element_rect(fill = "#f5f5f2", color = NA), 
+    legend.background = element_rect(fill = "#f5f5f2", color = NA),
+    plot.title = element_text(size= 22, hjust=0.5, color = "#4e4d47", margin = margin(b = -0.1, t = 0.4, l = 2, unit = "cm")),
+  )
+```
+
+## ESTADOS UNIDOS 
+
+Tenemos el mismo gráfico, pero en escala logarítmica. 
+
+```{r, warning=FALSE}
+us_oil <- read_excel("PET_CRD_CRPDN_ADC_MBBL_A.xls", 
+  col_types = c("text", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", 
+                "numeric"))
+us_oil <- us_oil %>% filter(state != "US") %>% 
+  mutate(expresion_log = log(y_2020))
+
+
+us <- ggplot(us_oil, aes(state, expresion_log, fill = expresion_log)) +
+  geom_col() + coord_polar() +
+  scale_y_continuous(
+    limits = c(0, 14),
+    expand = c(0, 0),
+    breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
+  ) + 
+  scale_fill_gradientn(
+    "Escala logarítmica",
+    colours = c( "#6C5B7B","#C06C84","#F67280","#F8B195")
+  ) +
+  guides(
+    fill = guide_colorsteps(
+      barwidth = 15, barheight = .5, title.position = "top", title.hjust = .5
+    )
+  ) +
+  theme(
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text.y = element_blank(),
+    axis.text.x = element_text(color = "gray12", size = 6),
+    legend.position = "bottom",
+  )+labs(title = "Producción por Estados",
+         subtitle = "Unidades originales: miles de barriles ")
+us
+
+```
+
+# FINAL!!!!!
+
+```{r}
+knitr::include_graphics(here::here("imagenes", "aguacate-o-petroleoo.gif")  )
+```
+
