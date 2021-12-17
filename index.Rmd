@@ -612,7 +612,10 @@ us
 
 ```
 
-# FINAL!!!!!
+## CONCLUSIONES
+
+> - Concienciación sobre el cambio climático
+> - Nuevas fuentes de energía renovable
 
 ```{r}
 knitr::include_graphics(here::here("imagenes", "aguacate-o-petroleoo.gif")  )
