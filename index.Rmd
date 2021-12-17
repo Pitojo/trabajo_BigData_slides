@@ -1,5 +1,5 @@
 ---
-title: "EL CRUDO EN EL MUNDO"
+title: "LA IMPORTANCIA DEL CRUDO EN EL MUNDO"
 subtitle: "Carolina, Jialing, José."
 author: "Universitat de València."
 date: "Diciembre de 2021"
@@ -7,7 +7,7 @@ output:
    ioslides_presentation:
    widescreen: yes
    smaller: yes
-   logo: imagenes/gota2.png
+   logo: ./imagenes/gota2.png
    background.color: "white"
 ---
 
@@ -104,7 +104,9 @@ world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
 ----
 <center><FONT COLOR="#575757">TABLA PRODUCCIÓN AÑO 2020</FONT></center>
 
-```{r echo = FALSE, eval= TRUE, out.height="10%"}
+<center>
+
+```{r echo = FALSE, eval= TRUE, out.height="10%", fig.align='center'}
 dfbanderas <- full_join(iso3, produccion2020, by = c("País" = "Países") )
 dfbanderas[6] <-list(NULL)
 dfbanderas <- dfbanderas %>% na.omit()
